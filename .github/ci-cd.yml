@@ -1,13 +1,12 @@
-name: React CI/CD
+name: React CI/CD to EC2
 
-# Trigger workflow on push to main branch
 on:
   push:
     branches:
       - main
 
 jobs:
-  build-and-push-docker:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +24,7 @@ jobs:
       - name: Build React app
         run: npm run build
 
-      - name: Log in to DockerHub
+      - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -36,3 +35,16 @@ jobs:
 
       - name: Push Docker image
         run: docker push mo7iiee/devops:latest
+
+      # Deploy to EC2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull mo7iiee/devops:latest
+            docker stop react-app || true
+            docker rm react-app || true
+            docker run -d -p 80:80 --name react-app mo7iiee/devops:latest
